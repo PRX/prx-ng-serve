@@ -6,6 +6,9 @@
   "scripts": {
     "test": "echo \"no tests\""
   },
+  "bin": {
+    "prx-ng-serve": "script.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PRX/prx-ng-serve.git"
