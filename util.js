@@ -54,8 +54,21 @@ exports.readEnv = (forServer) => {
  * Find the script tags to include
  */
 exports.findScripts = (isDist) => {
-  let names = ['inline', 'polyfills', 'scripts', 'vendor', 'main'];
+  let names = ['inline', 'polyfills', 'vendor', 'main'];
   let scripts = [];
+
+  // styles are js-bundled in dev
+  if (!isDist) {
+    names.splice(2, 0, 'styles');
+  }
+
+  // scripts are optional
+  let cliJson = require(`${APP_ROOT}/.angular-cli.json`);
+  if (cliJson && cliJson.apps.some(a => a.scripts.length > 0)) {
+    names.splice(2, 0, 'scripts');
+  }
+
+  // figure out actual filenames
   if (isDist) {
     let distFiles = [];
     try { distFiles = fs.readdirSync(APP_DIST); } catch (e) {}
@@ -63,13 +76,7 @@ exports.findScripts = (isDist) => {
       return distFiles.find(f => f.match(/\.bundle\.js$/) && f.split('.')[0] === n);
     }).filter(s => s);
   } else {
-    names.splice(3, 0, 'styles'); // styles are js-bundled in dev
     scripts = names.map(n => `${n}.bundle.js`);
-  }
-
-  // scripts.bundle is optional
-  if (!scripts.find(s => s.match(/^scripts/))) {
-    names = names.filter(n => !n.match(/^scripts/));
   }
 
   if (scripts.length !== names.length) {
