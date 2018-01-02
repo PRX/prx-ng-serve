@@ -66,6 +66,12 @@ exports.findScripts = (isDist) => {
     names.splice(3, 0, 'styles'); // styles are js-bundled in dev
     scripts = names.map(n => `${n}.bundle.js`);
   }
+
+  // scripts.bundle is optional
+  if (!scripts.find(s => s.match(/^scripts/))) {
+    names = names.filter(n => !n.match(/^scripts/));
+  }
+
   if (scripts.length !== names.length) {
     console.error('ERROR: could not find built scripts in ./dist/');
     console.error('       did you forget to run npm build?');
