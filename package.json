@@ -1,6 +1,6 @@
 {
   "name": "prx-ng-serve",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Express server for PRX angular 2 applications",
   "main": "index.js",
   "scripts": {

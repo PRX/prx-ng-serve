@@ -25,9 +25,13 @@ module.exports = function runServer(isDist, middlewareFn) {
     middlewareFn(app);
   }
 
-  // TODO: is this CMS_HOST proxy still needed?
+  // proxy CMS public urls (302s) to avoid CORS problems on audio playback
   if (env.CMS_HOST) {
-    app.use('/pub', proxy({target: env.CMS_HOST, logLevel: 'warn'}));
+    let url = env.CMS_HOST;
+    if (!url.startsWith('http')) {
+      url = url.match(/\.docker$/) ? `http://${url}` : `https://${url}`;
+    }
+    app.use('/pub', proxy({target: url, changeOrigin: true, logLevel: 'warn'}));
   }
 
   // index.html
