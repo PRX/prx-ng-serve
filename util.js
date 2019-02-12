@@ -53,8 +53,8 @@ exports.readEnv = (forServer) => {
 /**
  * Find the script tags to include
  */
-exports.findScripts = (isDist) => {
-  let names = ['inline', 'polyfills', 'vendor', 'main'];
+const findScripts = (isDist) => {
+  let names = ['polyfills', 'main', 'runtime'];
   let scripts = [];
 
   // styles are js-bundled in dev
@@ -63,9 +63,19 @@ exports.findScripts = (isDist) => {
   }
 
   // scripts are optional
-  let cliJson = require(`${APP_ROOT}/.angular-cli.json`);
-  if (cliJson && cliJson.apps.some(a => a.scripts.length > 0)) {
-    names.splice(2, 0, 'scripts');
+  let cliJson = require(`${APP_ROOT}/angular.json`);
+  
+  if (cliJson) {
+    const defArch = cliJson.projects[cliJson.defaultProject].architect
+    
+    const dedupedScripts = [...new Set(
+      Object.keys(defArch)
+        .reduce((acc, key) => acc.concat(defArch[key].options.scripts), [])
+        .filter(el => el !== undefined)
+    )]
+    if (dedupedScripts.length > 0) {
+      names.splice(2, 0, 'scripts');
+    }
   }
 
   // figure out actual filenames
@@ -73,7 +83,7 @@ exports.findScripts = (isDist) => {
     let distFiles = [];
     try { distFiles = fs.readdirSync(APP_DIST); } catch (e) {}
     scripts = names.map(n => {
-      return distFiles.find(f => f.match(/\.bundle\.js$/) && f.split('.')[0] === n);
+      return distFiles.find(f => f.match(/\.[0-9a-f]+\.js$/) && f.split('.')[0] === n);
     }).filter(s => s);
   } else {
     scripts = names.map(n => `${n}.bundle.js`);
@@ -90,7 +100,7 @@ exports.findScripts = (isDist) => {
 /**
  * Find inline css to include (dist only)
  */
-exports.findStyles = (isDist) => {
+const findStyles = (isDist) => {
   let styles = [];
   if (isDist) {
     let distFiles = [];
@@ -107,8 +117,8 @@ exports.buildIndex = (isDist) => {
   let tpl = cache('html', isDist, () => pug.compileFile(APP_INDEX));
   let data = {
     env: cache('env', isDist, () => exports.readEnv()),
-    js:  cache('js',  isDist, () => exports.findScripts(isDist)),
-    css: cache('css', isDist, () => exports.findStyles(isDist))
+    js:  cache('js',  isDist, () => findScripts(isDist)),
+    css: cache('css', isDist, () => findStyles(isDist))
   };
 
   // DON'T cache newrelic header (will be disabled if NR ENVs aren't set)
