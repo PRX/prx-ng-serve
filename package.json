@@ -1,7 +1,7 @@
 {
   "name": "prx-ng-serve",
-  "version": "0.0.4",
-  "description": "Express server for PRX angular 2 applications",
+  "version": "0.1.0",
+  "description": "Express server for PRX Angular 6 applications",
   "main": "index.js",
   "scripts": {
     "test": "echo \"no tests\""
@@ -36,6 +36,6 @@
     "pug": "^2.0.0-rc.4"
   },
   "peerDependencies": {
-    "@angular/core": ">=6.0.0 <7.0.0",
+    "@angular/core": ">=6.0.0 <7.0.0"
   }
 }
