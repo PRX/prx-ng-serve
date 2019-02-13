@@ -86,7 +86,7 @@ const findScripts = (isDist) => {
       return distFiles.find(f => f.match(/\.[0-9a-f]+\.js$/) && f.split('.')[0] === n);
     }).filter(s => s);
   } else {
-    scripts = names.map(n => `${n}.bundle.js`);
+    scripts = names.map(n => `${n}.js`);
   }
 
   if (scripts.length !== names.length) {
