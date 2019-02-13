@@ -60,14 +60,15 @@ const findScripts = (isDist) => {
   // styles are js-bundled in dev
   if (!isDist) {
     names.splice(2, 0, 'styles');
+    names.push('vendor');
   }
 
   // scripts are optional
   let cliJson = require(`${APP_ROOT}/angular.json`);
-  
+
   if (cliJson) {
     const defArch = cliJson.projects[cliJson.defaultProject].architect
-    
+
     const dedupedScripts = [...new Set(
       Object.keys(defArch)
         .reduce((acc, key) => acc.concat(defArch[key].options.scripts), [])
@@ -105,7 +106,7 @@ const findStyles = (isDist) => {
   if (isDist) {
     let distFiles = [];
     try { distFiles = fs.readdirSync(APP_DIST); } catch (e) {}
-    styles = distFiles.filter(f => f.match(/\.bundle\.css$/));
+    styles = distFiles.filter(f => f.match(/\.[0-9a-f]+\.css$/));
   }
   return styles;
 };
@@ -143,9 +144,10 @@ exports.isIndex = (path) => {
 /**
  * Spawn a process to run ng serve on a random open port
  */
-exports.ngServe = (publicHost, callback) => {
+exports.ngServe = (publicHost, isDist, callback) => {
+  const devOpts = isDist ? [] : ['--disable-host-check']
   getport().then(port => {
-    spawn(APP_NG, ['serve', '--port', port, '--public-host', publicHost], {stdio: 'inherit'});
+    spawn(APP_NG, ['serve', '--port', port, '--public-host', publicHost, ...devOpts], {stdio: 'inherit'});
     callback(port);
   });
 };
