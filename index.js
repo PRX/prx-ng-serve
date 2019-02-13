@@ -60,7 +60,7 @@ module.exports = function runServer(isDist, middlewareFn) {
     });
     startListening();
   } else if (env.HOST || process.env.HOST) {
-    util.ngServe(env.HOST || process.env.HOST, isDist, function serveDev(ngServePort) {
+    util.ngServe(env.HOST || process.env.HOST, function serveDev(ngServePort) {
       app.use(proxy({target: `http://127.0.0.1:${ngServePort}`, logLevel: 'warn', ws: true}))
       startListening();
     });

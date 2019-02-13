@@ -54,13 +54,13 @@ exports.readEnv = (forServer) => {
  * Find the script tags to include
  */
 const findScripts = (isDist) => {
-  let names = ['polyfills', 'main', 'runtime'];
+  let names = ['runtime', 'polyfills', 'main'];
   let scripts = [];
 
   // styles are js-bundled in dev
   if (!isDist) {
     names.splice(2, 0, 'styles');
-    names.push('vendor');
+    names.splice(3, 0, 'vendor');
   }
 
   // scripts are optional
@@ -69,13 +69,11 @@ const findScripts = (isDist) => {
   if (cliJson) {
     const defArch = cliJson.projects[cliJson.defaultProject].architect
 
-    const dedupedScripts = [...new Set(
-      Object.keys(defArch)
+    const scriptsInArchs = Object.keys(defArch)
         .reduce((acc, key) => acc.concat(defArch[key].options.scripts), [])
         .filter(el => el !== undefined)
-    )]
-    if (dedupedScripts.length > 0) {
-      names.splice(2, 0, 'scripts');
+    if (scriptsInArchs.length > 0) {
+      names.splice(3, 0, 'scripts');
     }
   }
 
@@ -144,10 +142,9 @@ exports.isIndex = (path) => {
 /**
  * Spawn a process to run ng serve on a random open port
  */
-exports.ngServe = (publicHost, isDist, callback) => {
-  const devOpts = isDist ? [] : ['--disable-host-check']
+exports.ngServe = (publicHost, callback) => {
   getport().then(port => {
-    spawn(APP_NG, ['serve', '--port', port, '--public-host', publicHost, ...devOpts], {stdio: 'inherit'});
+    spawn(APP_NG, ['serve', '--port', port, '--public-host', publicHost, '--disable-host-check'], {stdio: 'inherit'});
     callback(port);
   });
 };
