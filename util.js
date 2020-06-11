@@ -1,8 +1,6 @@
 'use strict';
 const dotenv   = require('dotenv');
 const fs       = require('fs');
-const path     = require('path');
-const pug      = require('pug');
 const spawn    = require('child_process').spawn
 const getport  = require('get-port');
 const APP_ROOT = process.cwd();
@@ -11,7 +9,6 @@ const APP_ROOT = process.cwd();
 const APP_EXAMPLE = `${APP_ROOT}/env-example`;
 const APP_ENV     = `${APP_ROOT}/.env`;
 const APP_DIST    = `${APP_ROOT}/dist`;
-const APP_INDEX   = `${APP_ROOT}/src/index.pug`;
 const APP_NG      = `${APP_ROOT}/node_modules/.bin/ng`;
 const SERVER_ENVS = ['HOST', 'PORT', 'NEW_RELIC_APP_NAME', 'NEW_RELIC_LICENSE_KEY'];
 
@@ -50,85 +47,53 @@ exports.readEnv = (forServer) => {
 };
 
 /**
- * Find the script tags to include
+ * Compile the index from file
  */
-const findScripts = (isDist) => {
-  let names = ['runtime', 'polyfills', 'main'];
-  let scripts = [];
-
-  // styles are js-bundled in dev
-  if (!isDist) {
-    names.splice(2, 0, 'styles');
-    names.splice(3, 0, 'vendor');
-  }
-
-  // scripts are optional
-  let cliJson = require(`${APP_ROOT}/angular.json`);
-
-  if (cliJson) {
-    const defArch = cliJson.projects[cliJson.defaultProject].architect
-
-    const scriptsInArchs = Object.keys(defArch)
-        .reduce((acc, key) => acc.concat(defArch[key].options.scripts), [])
-        .filter(el => el !== undefined)
-    if (scriptsInArchs.length > 0) {
-      names.splice(3, 0, 'scripts');
-    }
-  }
-
-  // figure out actual filenames
-  if (isDist) {
-    let distFiles = [];
-    try { distFiles = fs.readdirSync(APP_DIST); } catch (e) {}
-    scripts = names.map(n => {
-      return distFiles.find(f => f.match(/\.[0-9a-f]+\.js$/) && f.split('.')[0] === n);
-    }).filter(s => s);
-  } else {
-    scripts = names.map(n => `${n}.js`);
-  }
-
-  if (scripts.length !== names.length) {
-    console.error('ERROR: could not find built scripts in ./dist/');
+exports.buildIndex = () => {
+  let html;
+  try {
+    html = fs.readFileSync(`${APP_DIST}/index.html`).toString('utf-8');
+  } catch (e) {
+    console.error('ERROR: could not find built index.html in ./dist/');
     console.error('       did you forget to run npm build?');
     process.exit(1);
   }
-  return scripts;
-};
+  return exports.injectIndex(html);
+}
 
 /**
- * Find inline css to include (dist only)
+ * Rewrite a proxied response as it happens
  */
-const findStyles = (isDist) => {
-  let styles = [];
-  if (isDist) {
-    let distFiles = [];
-    try { distFiles = fs.readdirSync(APP_DIST); } catch (e) {}
-    styles = distFiles.filter(f => f.match(/\.[0-9a-f]+\.css$/));
-  }
-  return styles;
-};
+exports.rewriteProxyIndex = (proxyRes, req, res) => {
+  const data = [];
+  proxyRes.on('data', d => data.push(d));
+  proxyRes.on('end', () => {
+    res.status(proxyRes.statusCode);
+    Object.keys(proxyRes.headers).forEach(k => {
+      res.append(k, proxyRes.headers[k]);
+    });
+    res.send(exports.injectIndex(Buffer.concat(data).toString()));
+    res.end();
+  });
+}
 
 /**
- * Compile the index
+ * Inject ENVs into the index.html string
  */
-exports.buildIndex = (isDist) => {
-  let tpl = cache('html', isDist, () => pug.compileFile(APP_INDEX));
-  let data = {
-    env: cache('env', isDist, () => exports.readEnv()),
-    js:  cache('js',  isDist, () => findScripts(isDist)),
-    css: cache('css', isDist, () => findStyles(isDist))
-  };
-
-  // DON'T cache newrelic header (will be disabled if NR ENVs aren't set)
-  const { NEW_RELIC_APP_NAME, NEW_RELIC_LICENSE_KEY } = exports.readEnv(true)
+exports.injectIndex = (html) => {
+  const { NEW_RELIC_APP_NAME, NEW_RELIC_LICENSE_KEY } = exports.readEnv(true);
   if (NEW_RELIC_LICENSE_KEY) {
-    process.env.NEW_RELIC_APP_NAME = NEW_RELIC_APP_NAME
-    process.env.NEW_RELIC_LICENSE_KEY = NEW_RELIC_LICENSE_KEY
-    const newrelic = require('newrelic');
-    data.newRelicHeader = newrelic.getBrowserTimingHeader();
+    process.env.NEW_RELIC_APP_NAME = NEW_RELIC_APP_NAME;
+    process.env.NEW_RELIC_LICENSE_KEY = NEW_RELIC_LICENSE_KEY;
+    const newRelicTag = require('newrelic').getBrowserTimingHeader() || '';
+    html = html.replace('</head>', newRelicTag + '</head>');
   }
 
-  return tpl(data);
+  const envJson = JSON.stringify(exports.readEnv())
+  const envTag = `<script type="text/javascript">window.ENV=${envJson}</script>`;
+  html = html.replace('</body>', envTag + '</body>');
+
+  return html;
 };
 
 /**
@@ -150,19 +115,8 @@ exports.isIndex = (path) => {
  */
 exports.ngServe = (publicHost, callback) => {
   getport().then(port => {
-    spawn(APP_NG, ['serve', '--port', port, '--public-host', publicHost, '--disable-host-check'], {stdio: 'inherit'});
+    const proc = spawn(APP_NG, ['serve', '--port', port, '--public-host', publicHost, '--disable-host-check'], {stdio: 'inherit'});
+    process.on('exit', () => proc.kill('SIGINT'))
     callback(port);
   });
 };
-
-/**
- * Cache helper
- */
- const CACHED = {};
- function cache(key, useCached, cacheFn) {
-   if (useCached && CACHED[key]) {
-     return CACHED[key];
-   } else {
-     return CACHED[key] = cacheFn();
-   }
- }

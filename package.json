@@ -1,6 +1,6 @@
 {
   "name": "prx-ng-serve",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Express server for PRX Angular 6 applications",
   "main": "index.js",
   "scripts": {
@@ -32,8 +32,7 @@
     "get-port": "^3.2.0",
     "http-proxy-middleware": "^0.17.4",
     "morgan": "^1.9.0",
-    "newrelic": "^2.4.2",
-    "pug": "^2.0.0-rc.4"
+    "newrelic": "^2.4.2"
   },
   "peerDependencies": {
     "@angular/core": "^8.2.0 || ^9.1.9"
