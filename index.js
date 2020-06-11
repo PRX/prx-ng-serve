@@ -1,5 +1,4 @@
 'use strict';
-const newrelic = require('newrelic');
 const express  = require('express');
 const proxy    = require('http-proxy-middleware');
 const gzip     = require('connect-gzip-static');

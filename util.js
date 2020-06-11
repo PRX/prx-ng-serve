@@ -3,10 +3,9 @@ const dotenv   = require('dotenv');
 const fs       = require('fs');
 const path     = require('path');
 const pug      = require('pug');
-const newrelic = require('newrelic');
 const spawn    = require('child_process').spawn
 const getport  = require('get-port');
-const APP_ROOT = path.resolve(__dirname).split('/node_modules')[0];
+const APP_ROOT = process.cwd();
 
 // TODO: parameterize
 const APP_EXAMPLE = `${APP_ROOT}/env-example`;
@@ -121,7 +120,14 @@ exports.buildIndex = (isDist) => {
   };
 
   // DON'T cache newrelic header (will be disabled if NR ENVs aren't set)
-  data.newRelicHeader = newrelic.getBrowserTimingHeader();
+  const { NEW_RELIC_APP_NAME, NEW_RELIC_LICENSE_KEY } = exports.readEnv(true)
+  if (NEW_RELIC_LICENSE_KEY) {
+    process.env.NEW_RELIC_APP_NAME = NEW_RELIC_APP_NAME
+    process.env.NEW_RELIC_LICENSE_KEY = NEW_RELIC_LICENSE_KEY
+    const newrelic = require('newrelic');
+    data.newRelicHeader = newrelic.getBrowserTimingHeader();
+  }
+
   return tpl(data);
 };
 
