@@ -33,24 +33,19 @@ module.exports = function runServer(isDist, middlewareFn) {
     app.use('/pub', proxy({target: url, changeOrigin: true, logLevel: 'warn'}));
   }
 
-  // index.html
-  util.buildIndex(isDist); // throw compilation errors right away
-  app.use(function sendIndex(req, res, next) {
-    if (util.isIndex(req.path)) {
-      if (req.headers['x-forwarded-proto'] === 'http' && !req.headers['host'].match(/\.docker/)) {
-        res.redirect(`https://${req.headers.host}${req.url}`);
-      } else {
-        res.setHeader('Content-Type', 'text/html');
-        res.send(util.buildIndex(isDist));
-      }
-    } else {
-      next();
-    }
-  });
-
-  // asset serving (static or ng serve'd)
+  // serve static files from dist, or proxy to "ng serve"
   if (isDist) {
     let serveStatic = gzip('dist');
+    let indexHtml = util.buildIndex()
+    app.use(function serveIndex(req, res, next) {
+      if (util.isIndex(req.path)) {
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Content-Length', indexHtml.length);
+        res.send(indexHtml);
+      } else {
+        next();
+      }
+    });
     app.use(function serveAssets(req, res, next) {
       serveStatic(req, res, next);
     });
@@ -60,7 +55,9 @@ module.exports = function runServer(isDist, middlewareFn) {
     startListening();
   } else if (env.HOST || process.env.HOST) {
     util.ngServe(env.HOST || process.env.HOST, function serveDev(ngServePort) {
-      app.use(proxy({target: `http://127.0.0.1:${ngServePort}`, logLevel: 'warn', ws: true}))
+      let target = `http://127.0.0.1:${ngServePort}`
+      app.use(proxy(util.isIndex, {target, logLevel: 'warn', selfHandleResponse: true, onProxyRes: util.rewriteProxyIndex}))
+      app.use(proxy({target, logLevel: 'warn', ws: true}))
       startListening();
     });
   } else {
