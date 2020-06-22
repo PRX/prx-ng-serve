@@ -33,6 +33,15 @@ module.exports = function runServer(isDist, middlewareFn) {
     app.use('/pub', proxy({target: url, changeOrigin: true, logLevel: 'warn'}));
   }
 
+  // redirect to https for index requests
+  app.use(function redirectHttps(req, res, next) {
+    if (util.isIndex(req.path) && req.headers['x-forwarded-proto'] === 'http' && !req.headers['host'].match(/\.docker/)) {
+      res.redirect(`https://${req.headers.host}${req.url}`);
+    } else {
+      next();
+    }
+  });
+
   // serve static files from dist, or proxy to "ng serve"
   if (isDist) {
     let serveStatic = gzip('dist');
